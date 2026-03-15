@@ -2,17 +2,42 @@
 """Compare two agent fingerprint files and produce a diff report."""
 
 import json
+import re
 import sys
 from pathlib import Path
 from difflib import SequenceMatcher
 
+
+def tokenize(text: str) -> set[str]:
+    """Extract lowercase word tokens, stripping punctuation."""
+    return set(re.findall(r'\b\w+\b', text.lower()))
+
+
+def jaccard(a: str, b: str) -> float:
+    """Word-level Jaccard similarity."""
+    tokens_a, tokens_b = tokenize(a), tokenize(b)
+    if not tokens_a and not tokens_b:
+        return 1.0
+    if not tokens_a or not tokens_b:
+        return 0.0
+    return len(tokens_a & tokens_b) / len(tokens_a | tokens_b)
+
+
 def similarity(a: str, b: str) -> float:
-    """String similarity ratio 0-1."""
-    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+    """Blended similarity: 60% Jaccard (semantic), 40% SequenceMatcher (structural)."""
+    if not a and not b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+    j = jaccard(a, b)
+    s = SequenceMatcher(None, a.lower(), b.lower()).ratio()
+    return 0.6 * j + 0.4 * s
+
 
 def load_fingerprint(path: str) -> dict:
     with open(path) as f:
         return json.load(f)
+
 
 def compare(base: dict, other: dict) -> dict:
     results = {
@@ -39,11 +64,11 @@ def compare(base: dict, other: dict) -> dict:
     for qid in all_ids:
         ba = base_answers.get(qid, {})
         oa = other_answers.get(qid, {})
-        
+
         b_text = ba.get("answer", "")
         o_text = oa.get("answer", "")
         dim = ba.get("dimension", oa.get("dimension", "unknown"))
-        
+
         sim = similarity(b_text, o_text)
         scores.append(sim)
 
@@ -79,24 +104,8 @@ def compare(base: dict, other: dict) -> dict:
 
     return results
 
-def main():
-    if len(sys.argv) < 3:
-        print("Usage: compare-fingerprints.py <baseline.json> <other.json> [output.json]")
-        sys.exit(1)
 
-    base = load_fingerprint(sys.argv[1])
-    other = load_fingerprint(sys.argv[2])
-    result = compare(base, other)
-
-    output = json.dumps(result, indent=2)
-
-    if len(sys.argv) > 3:
-        Path(sys.argv[3]).write_text(output)
-        print(f"Comparison saved to {sys.argv[3]}")
-    else:
-        print(output)
-
-    # Summary
+def print_summary(result: dict):
     print(f"\n{'='*60}")
     print(f"FINGERPRINT COMPARISON")
     print(f"{'='*60}")
@@ -111,6 +120,35 @@ def main():
     for d in result["biggest_divergences"][:5]:
         print(f"  Q{d['id']:2s} ({d['dimension']:20s}) — {d['similarity']*100:.1f}% similar")
         print(f"      {d['question'][:80]}")
+
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Compare two agent fingerprints")
+    parser.add_argument("baseline", help="Path to baseline fingerprint JSON")
+    parser.add_argument("other", help="Path to other fingerprint JSON")
+    parser.add_argument("-o", "--output", help="Save comparison JSON to file")
+    parser.add_argument("--json", action="store_true", help="Output JSON only (no summary)")
+    args = parser.parse_args()
+
+    base = load_fingerprint(args.baseline)
+    other = load_fingerprint(args.other)
+    result = compare(base, other)
+
+    output_json = json.dumps(result, indent=2)
+
+    if args.output:
+        Path(args.output).write_text(output_json)
+
+    if args.json:
+        print(output_json)
+    else:
+        if args.output:
+            print(f"Comparison saved to {args.output}")
+        else:
+            print(output_json)
+        print_summary(result)
+
 
 if __name__ == "__main__":
     main()

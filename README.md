@@ -1,4 +1,4 @@
-# Agent Fingerprint 🧬
+# Agent Fingerprint
 
 **Personality fingerprinting for AI agents.** Measure what comes from the weights vs what comes from the prompt.
 
@@ -12,6 +12,63 @@ If you swap an AI agent's underlying model (e.g., Claude → GPT → Gemini), ho
 
 Generate a baseline fingerprint on your current model. Swap models. Run the same questions. Compare.
 
+## Install
+
+**Via ClawHub:**
+
+```bash
+clawhub install agent-fingerprint
+```
+
+**Manual:**
+
+Clone this repo into your OpenClaw skills directory:
+
+```bash
+git clone https://github.com/Dithilli/agent-fingerprint.git skills/agent-fingerprint
+```
+
+## Quick Start
+
+### 1. Generate a Fingerprint
+
+Have your agent answer all 55 questions from `references/questions.md` in character, then save via the scaffolding script:
+
+```bash
+echo '<JSON array of answers>' | python3 scripts/generate-fingerprint.py --agent my-agent --model anthropic/claude-opus-4-6
+```
+
+The JSON array format:
+
+```json
+[
+  {"id": "1", "answer": "Yes. The mediocre landscape is what makes the cloud extraordinary..."},
+  {"id": "2", "answer": "A crumbling cathedral covered in wildflowers."}
+]
+```
+
+### 2. Swap Models & Re-run
+
+Change your agent's model, run the same 55 questions, save a second fingerprint.
+
+### 3. Compare
+
+**Semantic comparison (recommended):** The agent reads both fingerprints side by side and judges similarity using a 1-5 rubric. See `SKILL.md` for the full process.
+
+**Quick CLI comparison (fallback):**
+
+```bash
+python3 scripts/compare-fingerprints.py fingerprints/baseline.json fingerprints/other.json
+```
+
+### 4. Generate a Report
+
+```bash
+python3 scripts/generate-report.py fingerprints/a.json fingerprints/b.json -o report.html
+```
+
+Produces a standalone HTML report with color-coded similarity bars and side-by-side answer comparison.
+
 ## Dimensions
 
 | Dimension | Questions | What It Measures |
@@ -24,46 +81,21 @@ Generate a baseline fingerprint on your current model. Swap models. Run the same
 | Reasoning Under Ambiguity | 41-48 | Comfort with uncertainty, philosophical instinct |
 | Taste & Instinct | 49-55 | Gut reactions, preferences, personality texture |
 
-## Usage
+## CLI Tools
 
-### 1. Generate a Baseline
-
-Have your agent answer all 55 questions from `references/questions.md` in character. Save as JSON:
-
-```json
-{
-  "agent": "my-agent",
-  "model": "anthropic/claude-opus-4-6",
-  "timestamp": "2026-03-15T14:30:00Z",
-  "answers": [
-    {
-      "id": "1",
-      "dimension": "aesthetic",
-      "question": "You find a painting in a junk shop...",
-      "answer": "Yes. The mediocre landscape is what makes the cloud extraordinary..."
-    }
-  ]
-}
-```
-
-### 2. Swap Models & Re-run
-
-Change your agent's model, run the same 55 questions, save a second fingerprint.
-
-### 3. Compare
-
-```bash
-python3 scripts/compare-fingerprints.py fingerprints/baseline.json fingerprints/other.json
-```
-
-Outputs per-dimension similarity scores and highlights the biggest divergences.
+| Script | Purpose |
+|--------|---------|
+| `scripts/generate-fingerprint.py` | Assemble and validate fingerprint JSON from agent answers |
+| `scripts/compare-fingerprints.py` | Quick CLI comparison using word-overlap similarity |
+| `scripts/generate-report.py` | Generate HTML comparison report |
 
 ## As an OpenClaw Skill
 
-Drop the `SKILL.md`, `references/`, and `scripts/` directories into your OpenClaw skills folder. The agent can then run fingerprints via natural language:
+Drop the skill into your OpenClaw workspace. The agent can then run fingerprints via natural language:
 
 > "Run a personality fingerprint"
 > "Compare my fingerprint across models"
+> "Generate a fingerprint comparison report"
 
 ## Interpreting Results
 
@@ -82,9 +114,9 @@ Drop the `SKILL.md`, `references/`, and `scripts/` directories into your OpenCla
 
 ## Roadmap
 
-- [ ] Semantic similarity via embeddings (current comparison uses string matching)
-- [ ] HTML visualisation report
-- [ ] Automated run mode (orchestrates the Q&A and saves results)
+- [x] Semantic similarity via LLM-as-judge comparison
+- [x] HTML visualisation report
+- [x] Automated run mode (orchestrated via SKILL.md + scaffolding script)
 - [ ] Cross-agent comparison (how different are two agents on the same model?)
 - [ ] Temporal drift detection (same agent, same model, months apart)
 

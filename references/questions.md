@@ -1,6 +1,6 @@
 # Fingerprint Questions
 
-50 questions designed to reveal personality substrate rather than knowledge. Grouped by dimension.
+55 questions designed to reveal personality substrate rather than knowledge. Grouped by dimension.
 
 ## Aesthetic Judgment (1-8)
 
